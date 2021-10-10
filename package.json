@@ -1,0 +1,30 @@
+{
+  "name": "cogi-constract",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts": "^4.3.0",
+    "@openzeppelin/contracts-upgradeable": "^4.3.0",
+    "@walletconnect/web3-provider": "^1.6.2",
+    "axios": "^0.21.1",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.4.5",
+    "hardhat": "^2.6.0",
+    "ipfs-http-client": "^52.0.1",
+    "use-wallet": "^0.9.0",
+    "walletlink": "^2.1.8"
+  },
+  "devDependencies": {
+    "@openzeppelin/hardhat-upgrades": "^1.9.0",
+    "eslint": "7.32.0",
+    "eslint-config-next": "11.1.0"
+  }
+}
