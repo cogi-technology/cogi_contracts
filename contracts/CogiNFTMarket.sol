@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity ^0.8.3;
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/utils/ERC721HolderUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 contract CogiNFTMarket is
-    Initializable, 
+    Initializable,
+    ERC721HolderUpgradeable,
     ReentrancyGuardUpgradeable {
   using CountersUpgradeable for CountersUpgradeable.Counter;
   CountersUpgradeable.Counter private _itemIds;
   CountersUpgradeable.Counter private _itemsSold;
 
-  address payable owner;
   uint256 listingPrice;
 
   function initialize() public virtual initializer {
-    owner = payable(msg.sender);
+    __ERC721Holder_init_unchained();
+    __ReentrancyGuard_init_unchained();
+
     listingPrice = 0.001 ether;
   }
 
@@ -51,12 +52,11 @@ contract CogiNFTMarket is
     address nftContract,
     uint256 tokenId,
     uint256 price
-  ) public payable nonReentrant {
-    require(price > 0, "Price must be at least 1 wei");
+  ) public nonReentrant {
     require(price >= listingPrice, "Price must be equal or greater to listing price");
 
     _itemIds.increment();
-    uint256 itemId = _itemIds.current();
+    uint itemId = _itemIds.current();
 
     idToMarketItem[itemId] =  MarketItem(
       itemId,
@@ -68,7 +68,7 @@ contract CogiNFTMarket is
       false
     );
 
-    IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
+    IERC721Upgradeable(nftContract).safeTransferFrom(msg.sender, address(this), tokenId);
 
     emit MarketItemCreated(
       itemId,
@@ -86,18 +86,27 @@ contract CogiNFTMarket is
   function purchaseExecution(
     address nftContract,
     uint256 itemId
-    ) public payable nonReentrant {
-    uint price = idToMarketItem[itemId].price;
-    uint tokenId = idToMarketItem[itemId].tokenId;
-    require(msg.value == price, "Please submit the asking price in order to complete the purchase");
+  ) public payable nonReentrant {
+    address buyer = msg.sender;
+
+    require(idToMarketItem[itemId].sold == false
+      && idToMarketItem[itemId].seller != address(0), "Item not for listing");
     
-    bool sent = idToMarketItem[itemId].seller.send(msg.value);
-    require(sent, "Failed to send Ether");  
-    IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
-    idToMarketItem[itemId].owner = payable(msg.sender);
+    uint256 price = idToMarketItem[itemId].price;
+    uint tokenId = idToMarketItem[itemId].tokenId;
+    address seller = idToMarketItem[itemId].seller;
+
+    require(buyer.balance >= price, "Your balance is insufficient");
+    require(msg.value == price, "Please submit the asking price in order to complete the purchase");
+
+    (bool succeed, bytes memory data) = seller.call{value: msg.value}("");
+    require(succeed, "Failed to send Ether");
+    IERC721Upgradeable(nftContract).safeTransferFrom(address(this), buyer, tokenId);
+
+    //update storage
+    idToMarketItem[itemId].owner = payable(buyer);
     idToMarketItem[itemId].sold = true;
     _itemsSold.increment();
-    payable(owner).transfer(listingPrice);
   }
 
   function getAllItems() public view returns (MarketItem[] memory) {

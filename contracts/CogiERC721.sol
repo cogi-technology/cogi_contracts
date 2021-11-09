@@ -11,7 +11,6 @@ import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "./common/meta-transactions/ContextMixin.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/draft-EIP712Upgradeable.sol";
 
-
 /**
  * @title COGI ERC721 Token
  * @author COGI Inc
@@ -46,27 +45,28 @@ contract CogiERC721 is
         uint256 tokenId
     );
 
-    event onTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    );
-
     event onTokenBurn(
         uint256 tokenId
     );
 
-    function initialize(string memory _name, string memory _symbol, address contract_address) public virtual initializer {
-        __ERC721_init(_name, _symbol);
+    function initialize(string memory _name, string memory _symbol) public virtual initializer {
         __Ownable_init();
         __Context_init_unchained();
         __AccessControlEnumerable_init_unchained();
         __ERC721_init_unchained(_name, _symbol);
         __ERC721Burnable_init_unchained();
-        proxyRegistryAddress = contract_address;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
-        _setupRole(PAUSER_ROLE, _msgSender());
+
+        __EIP712_init_unchained("CogiERC721EIP712", "1.0.0");
+    }
+    //onwer view
+    function setBaseURI(string memory baseURI) public onlyOwner {
+        __baseURI = baseURI;
+    }
+
+    function setProxyRegistryAddress(address _proxyRegistryAddress) public onlyOwner {
+        proxyRegistryAddress = _proxyRegistryAddress;
     }
 
     function _verify(bytes32 digest, bytes memory signature)
@@ -85,7 +85,6 @@ contract CogiERC721 is
         _tokenIds.increment();
         _mint(recipient, newTokenId);
         _setTokenURI(newTokenId, cid);
-        setApprovalForAll(proxyRegistryAddress, true);
         emit onAwardItem(recipient, cid, newTokenId);
         return newTokenId;
     }
@@ -133,12 +132,20 @@ contract CogiERC721 is
         super._burn(tokenId);
     }
 
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual override(ERC721Upgradeable) {
-        super._beforeTokenTransfer(from, to, tokenId);
+    /**
+     * Override isApprovedForAll to whitelist market contract.
+    */
+    function isApprovedForAll(address owner, address operator)
+        override
+        public
+        view
+        returns (bool)
+    {   
+        if (operator == proxyRegistryAddress) {
+            return true;
+        }
+
+        return super.isApprovedForAll(owner, operator);
     }
 
 }
