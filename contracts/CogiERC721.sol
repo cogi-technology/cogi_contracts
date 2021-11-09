@@ -35,7 +35,6 @@ contract CogiERC721 is
     CountersUpgradeable.Counter private _tokenIds;
     mapping(string => uint8) cids;
     string private __baseURI;
-    mapping(string => uint8) locks;
     
     mapping(address => uint256) private nonces;
     
